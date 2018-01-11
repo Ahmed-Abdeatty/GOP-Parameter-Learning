@@ -1,0 +1,54 @@
+import numpy as np
+class Theta:
+
+    """Docstring for theta. """
+
+    def __init__(self,domain_sizes,initialize=1):
+        """TODO: to be defined1. """
+        domain_size_h=domain_sizes[-1]
+        self.ih=[]
+        for d in domain_sizes[:-1]:
+            self.ih.append(np.ones((d,domain_size_h))/(d))
+        self.h=np.ones(domain_size_h)/domain_size_h
+        if initialize==0:
+            self.ih=[]
+            for d in domain_sizes[:-1]:
+                self.ih.append(np.zeros((d,domain_size_h))/(d))
+            self.h=np.zeros(domain_size_h)/domain_size_h
+
+    # conver theta into flat array (optimizer preference)
+    def flatten_theta(self):
+        return np.concatenate((self.h,np.array(self.ih).reshape(-1)))
+
+    # convert flat array to Theta objexct
+    def array_to_theta(self, flat_theta ,domain_sizes):
+        domain_size_h=domain_sizes[-1]
+        self.h= flat_theta[0:domain_size_h]
+        self.ih=[]
+        start_index = domain_size_h
+        for d in domain_sizes[:-1]:
+            self.ih.append(np.array(flat_theta[start_index:start_index + d*domain_size_h]).reshape(d,domain_size_h))
+            start_index = start_index + d*domain_size_h
+        return self
+
+class Lagrangian:
+    def __init__(self,domain_sizes):
+        self.constant=0
+        self.coefficient_theta_h=1
+        self.coefficients_theta_ih=np.zeros((len(domain_sizes)-1,domain_sizes[-1]))
+
+"""
+theta = Theta([2,2,3])
+print(theta.ih)
+print(theta.flatten_theta())
+temp = theta.array_to_theta([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], [2,2,3]).ih
+print(temp)
+temp1 = np.array(([l.sum(axis=0) - 1 for l in temp])) 
+print(theta.ih)
+print(temp1)
+print(temp1.sum())
+print(np.multiply(temp1,temp1).sum())
+print(len(theta.flatten_theta()))
+"""
+
+
