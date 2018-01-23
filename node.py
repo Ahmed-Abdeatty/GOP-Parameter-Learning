@@ -34,7 +34,7 @@ class Node:
         # for each connected variable set it as the max qualifying constraint
         for i in range(len(previous_theta)):
             # it's qualifying constraint can be positive or negative
-            for sign in [-1, 1]:
+            for sign in [-1]:
                 # add parent constraints to the child constraints
                 cons = self.constraints[:]
                 # generate lagrange constrain
@@ -47,11 +47,15 @@ class Node:
                 for j in range(len(previous_theta)):
                     if not i == j:
                         cons = cons + optimizer.relational_ineq(previous_theta, i, j, sign)
-
+                temp_cons = cons[:]
                 # Conduct optimization
                 Mu, theta = optimizer.optimize(previous_theta, initial_Mu, cons, bounds, domain_sizes)
-                node =  Node(self,  theta, Mu, cons)
-                if     (Mu >= upper_bound - 0.1) or math.isnan(Mu)  :
+                node =  Node(self,  theta, Mu, temp_cons)
+                node.order_between_sib = 2*(i+1)
+                if sign == -1:
+                    node.order_between_sib = 2*(i+1) -1
+                #print(Mu)
+                if     node.order_between_sib == self.order_between_sib or  math.isnan(Mu)  :
                     #(Mu >= upper_bound - 0.1) or
                     pass
                 else:

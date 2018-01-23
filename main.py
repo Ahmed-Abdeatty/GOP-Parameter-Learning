@@ -12,15 +12,17 @@ class Manager:
         self.k=0
         self.q=Q.PriorityQueue()
         optimizer = Optimizer()
-        self.upper_bound = 0.0
+        self.upper_bound = 1000
         self.lower_bound = -10
-        self.tol = 0.1
+        self.tol = 0.01
         #optimizer.theta_constraints(domain_sizes)
         self.counter=0
         self.domain_sizes=domain_sizes
         self.M=np.shape(data)[0]
         #optimizer.theta_constraints(self.domain_sizes)
-        self.q.put(((0,0),Node(None,Theta(domain_sizes),-100,optimizer.theta_constraints(self.domain_sizes))))
+        node = Node(None,Theta(domain_sizes),-100,[])
+        node.order_between_sib = 0
+        self.q.put(((0,0),node))
 
     def run_gop(self):
         while abs((self.upper_bound-self.lower_bound)/self.upper_bound) > self.tol:
@@ -47,12 +49,12 @@ class Manager:
         print("MU")
         print(current_node.Mu)
         self.theta=current_node.theta
-        self.lower_bound=current_node.Mu
+        self.lower_bound= min(self.lower_bound, current_node.Mu)
         #print( (current_node.Mu >= self.upper_bound - 0.1))
         flat_theta=self.theta.flatten_theta()
-        b = (0.02, 1.0)
-        bounds = [(-130.0,25.0)] + ([b] * len(flat_theta)  )
-        self.counter=current_node.generate_childs(lagrangian,flat_theta,self.domain_sizes,bounds,self.lower_bound,self.q,self.counter,self.upper_bound)
+        b = (0.0000001, .99)
+        bounds = [(-1333330.0,25)] + ([b] * len(flat_theta)  )
+        self.counter=current_node.generate_childs(lagrangian,flat_theta,self.domain_sizes,bounds,current_node.Mu,self.q,self.counter,self.upper_bound)
         
 
     def solve_primal(self):

@@ -13,21 +13,21 @@ class Optimizer:
         return x[0]
     
     def theta_constraints(self, domain_sizes):
-    	"""
-    	con = []
-    	con = con + [{'type': 'eq', 'fun': lambda x: self.theta_h_constraints(x, domain_sizes) }]
-    	for i in range(len(domain_sizes)-1):
-    		for j in range(domain_sizes[-1]):
-    			con = con + [{'type': 'eq', 'fun': lambda x: self.theta_ih_constraints(x, domain_sizes, i,j) }]
-    	"""
-    	con = []
-    	for j in range(domain_sizes[-1]-1):
-    		con = con + [{'type': 'ineq', 'fun': lambda x: self.theta_h_constraint(x, domain_sizes, j) }]
-    	return con
+        
+        con = []
+        con = con + [{'type': 'eq', 'fun': lambda x: self.theta_h_constraints(x, domain_sizes) }]
+        for i in range(len(domain_sizes)-1):
+            for j in range(domain_sizes[-1]):
+                con = con + [{'type': 'eq', 'fun': lambda x: self.theta_ih_constraints(x, domain_sizes, i,j) }]
+        
+        #for j in range(domain_sizes[-1]-1):
+            #con = con + [{'type': 'ineq', 'fun': lambda x: self.theta_h_constraint(x, domain_sizes, j) }]
+        return con
 
     # return the lagrange inequality constraint
     def lagrange_ineq(self, lagrangian, flat_theta, max_index, sign, domain_sizes):
-        con = {'type': 'ineq', 'fun': lambda x: self.lagrange_constraint(x, lagrangian, flat_theta, max_index, sign, domain_sizes) }
+        con = {'type': 'ineq', 'fun': lambda x: self.lagrange_constraint(x, lagrangian, flat_theta, max_index, sign, domain_sizes)
+        ,'jac': lambda x: self.lagrange_jac(x, lagrangian, flat_theta, max_index, sign, domain_sizes) }
         return [con]
     
     def theta_h_constraints(self, x, domain_sizes):
@@ -72,16 +72,25 @@ class Optimizer:
         ineq = ineq - lagrangian.constant
         # finally add the max qualifying constraint
         # len(flat_theta) is the number of connected variables
-        ineq = ineq + (len(flat_theta) * (sign * (math.log(flat_theta[max_index]) - math.log(x[max_index+1]))))
+        if sign == -1:
+            ineq = ineq + (len(flat_theta) * (sign * (math.log(flat_theta[max_index]) - math.log(x[max_index+1]))))
 
         return ineq
 
+
+    def lagrange_jac(self, x, lagrangian, flat_theta, max_index,sign, domain_sizes):
+        # unpack Mu and theta from the flattened set of variables
+        jac = np.zeros(len(flat_theta)+1)
+        jac[0] = 1
+        if sign == -1:
+            jac[max_index+1] = len(flat_theta) * sign / x[max_index+1]
+        return jac
     # define constraints between  max qualifying constraint and other qualifying constraint
     def relational_ineq(self, flat_theta, max_index, min_index, sign):
         # max_index is the index of the max qualifying constraint
         # min_index is the index of one of the non max qualifying constraint
         # sign is an indecator (takes values 1 or -1) to indecate the sign 
-        con1 = {'type': 'ineq', 'fun': lambda x: sign * (flat_theta[max_index] * x[min_index+1] - flat_theta[min_index] * x[max_index+1])}
+        con1 = {'type': 'ineq', 'fun': lambda x: sign * (flat_theta[max_index] * x[min_index+1] - flat_theta[min_index] * x[max_index+1] - 0.005)}
         con2 = {'type': 'ineq', 'fun': lambda x: sign * (flat_theta[max_index] * flat_theta[min_index] - x[min_index+1] * x[max_index+1])}
         return [con1, con2]
 
@@ -94,11 +103,12 @@ class Optimizer:
     # returns Mu, optimal theta
     def optimize(self, initial_theta, initial_Mu, constraints, bounds, domain_sizes):
         initial_theta = np.insert(initial_theta,0,initial_Mu)
-        sol = minimize(self.objective, initial_theta, method= 'SLSQP',options = {'ftol':1e-9}, bounds= bounds, constraints = constraints)
+        sol = minimize(self.objective, initial_theta, method= 'SLSQP', bounds= bounds, constraints = constraints)
         # unpack Mu and theta from the flattened solution
         Mu = sol.x[0]
+        #print(sol)
         if sol.success == False:
-        	return float('NaN'), float('NaN')
+            return float('NaN'), float('NaN')
         theta = Theta(domain_sizes)
         theta = theta.array_to_theta(sol.x[1:], domain_sizes)
         
