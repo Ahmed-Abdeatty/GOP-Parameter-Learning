@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from node import Node
+import collections
 from variables import Theta, Lagrangian
+from constraints import Constraints
 from optimizer import Optimizer
 import numpy as np
 from sklearn.preprocessing import normalize
@@ -13,15 +15,24 @@ class Manager:
         self.q=Q.PriorityQueue()
         optimizer = Optimizer()
         self.upper_bound = 1000
-        self.lower_bound = -10
+        
         self.tol = 0.01
         #optimizer.theta_constraints(domain_sizes)
         self.counter=0
         self.domain_sizes=domain_sizes
         self.M=np.shape(data)[0]
+        self.theta = Theta(domain_sizes)
+        previous_theta = self.theta.flatten_theta()
+        lagrangian, primal_value = self.solve_primal()
+        self.lower_bound = -10
+        cons = Constraints(domain_sizes)
+        cons.cons_list = cons.cons_list + optimizer.theta_constraints(domain_sizes)#self.lower_bound, self.theta = optimizer.optimize(previous_theta, self.lower_bound,optimizer.theta_constraints(self.domain_sizes), self.bounds, self.domain_sizes)
+        
         #optimizer.theta_constraints(self.domain_sizes)
-        node = Node(None,Theta(domain_sizes),-100,[])
-        node.order_between_sib = 0
+        
+        #self.lower_bound, self.theta = optimizer.optimize(previous_theta, 0, cons.cons_list, cons.get_bounds(), domain_sizes)
+        node = Node(None,self.theta,self.lower_bound ,cons,0,self.counter, -10)
+        node.lagrange_cons = []
         self.q.put(((0,0),node))
 
     def run_gop(self):
@@ -33,32 +44,32 @@ class Manager:
             
  
     def next_iteration(self):
-        if self.k==0:
-            self.theta=Theta(self.domain_sizes)
         
         
-        print(self.theta.ih)
-        print(self.theta.h)
+        
+        
+        current_node=self.q.get()[1]
+        
+        
+        self.theta=current_node.theta
+        self.lower_bound= current_node.Mu
         lagrangian, primal_value = self.solve_primal()
         self.upper_bound = min(self.upper_bound, primal_value)
-        if self.k==0:
-            self.upper_bound = primal_value
-        self.k=self.k+1
-        print(self.upper_bound)
-        current_node=self.q.get()[1]
-        print("MU")
-        print(current_node.Mu)
-        self.theta=current_node.theta
-        self.lower_bound= min(self.lower_bound, current_node.Mu)
+        
+        print("----------------------------------------------------------------------------------------------------------")
+        print("UB: " + str(self.upper_bound)+ "    MU: " + str(current_node.Mu) + "     PV: " + str(primal_value) +  "     Level: " + str(current_node.level) + "   Iteration: "+ str(self.k)) 
+        np.set_printoptions(precision=23)
+        print(current_node.theta.ih)
+        print(current_node.theta.h)
+
         #print( (current_node.Mu >= self.upper_bound - 0.1))
         flat_theta=self.theta.flatten_theta()
-        b = (0.0000001, .99)
-        bounds = [(-1333330.0,25)] + ([b] * len(flat_theta)  )
-        self.counter=current_node.generate_childs(lagrangian,flat_theta,self.domain_sizes,bounds,current_node.Mu,self.q,self.counter,self.upper_bound)
+        self.k=self.k+1
+        
+        self.counter=current_node.generate_childs(lagrangian,flat_theta,self.domain_sizes,self.q,self.counter,self.upper_bound)
         
 
     def solve_primal(self):
-
         lambda_h=np.log(self.theta.h)
         lambda_ih=np.log(self.theta.ih)
 
@@ -67,7 +78,7 @@ class Manager:
         b_h[:,:]=np.copy(lambda_h)
         for cnt, l in enumerate(lambda_ih):
             b_h[:,:]=np.add(b_h[:,:],l[data[:,cnt],:])
-        b_h[:,:]=np.exp((1.0/self.M)*b_h)
+        b_h[:,:]=np.exp(b_h)
         
         b_h=normalize(b_h,norm='l1')
         #Calculate b_bar
@@ -99,7 +110,7 @@ class Manager:
         primal_value = primal_value + (np.multiply(lagrangian.coefficients_theta_ih,sum_ih).sum())
         return lagrangian, primal_value
 
-data=np.asarray([[1,1,1],[1,0,0],[0,0,0],[0,1,0]])
-domain_sizes=[2,2,2,2]
+data=np.asarray([[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1],[1]])
+domain_sizes=[2,2]
 manager=Manager(data,domain_sizes)
 manager.run_gop()
